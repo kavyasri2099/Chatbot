@@ -1,0 +1,9 @@
+streamlit
+speechrecognition
+pyttsx3
+opencv-python
+transformers
+torch
+Pillow
+imutils  # Optional, for webcam handling
+ffmpeg-python  # Optional, for advanced video handling
