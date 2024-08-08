@@ -58,4 +58,31 @@ with footer_container:
     audio_bytes = audio_recorder()
 
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+if audio_bytes:
+    with st.spinner("Transcribing..."):
+        webm_file_path = "temp_audio.wav"
+        with open(webm_file_path, "wb") as f:
+            f.write(audio_bytes)
+
+        transcript = speech_to_text(webm_file_path)
+        if transcript:
+            st.session_state.messages.append({"role": "user", "content": transcript})
+            with st.chat_message("user"):
+                st.write(transcript)
+            os.remove(webm_file_path)
+
+if st.session_state.messages[-1]["role"] != "assistant":
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking🤔..."):
+            final_response = get_answer(st.session_state.messages[-1]["content"])
+        with st.spinner("Generating audio response..."):    
+            audio_file = text_to_speech(final_response)
+            autoplay_audio(audio_file)
+        st.write(final_response)
+        st.session_state.messages.append({"role": "assistant", "content": final_response})
+        os.remove(audio_file)
+
+footer_container.float("bottom: 0rem;")
