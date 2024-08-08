@@ -11,16 +11,22 @@ from streamlit_float import float_init
 float_init()
 
 # Load BERT model and tokenizer
-model_name = "bert-base-uncased"  # Use BERT for question answering
+model_name = "bert-large-uncased-whole-word-masking-finetuned-squad"
 tokenizer = BertTokenizer.from_pretrained(model_name)
 model = BertForQuestionAnswering.from_pretrained(model_name)
 
 def get_answer(question, context):
     inputs = tokenizer(question, context, return_tensors="pt")
     outputs = model(**inputs)
+    
+    # Get the most likely start and end of the answer
     answer_start = outputs.start_logits.argmax()
     answer_end = outputs.end_logits.argmax() + 1
-    answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs.input_ids[0][answer_start:answer_end]))
+    
+    # Convert token ids to string
+    answer = tokenizer.convert_tokens_to_string(
+        tokenizer.convert_ids_to_tokens(inputs.input_ids[0][answer_start:answer_end])
+    )
     return answer
 
 def speech_to_text(audio_file_path):
@@ -77,11 +83,13 @@ if audio_bytes:
                 st.write(transcript)
             os.remove(webm_file_path)
 
+context = "Provide a context or background information here."
+
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
-            final_response = get_answer(st.session_state.messages[-1]["content"])
-        with st.spinner("Generating audio response..."):    
+            final_response = get_answer(st.session_state.messages[-1]["content"], context)
+        with st.spinner("Generating audio response..."):
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
         st.write(final_response)
