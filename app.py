@@ -3,22 +3,25 @@ import base64
 import streamlit as st
 from gtts import gTTS
 import speech_recognition as sr
-from transformers import DistilGPT2LMHeadModel, DistilGPT2Tokenizer
+from transformers import BertTokenizer, BertForQuestionAnswering
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
 # Initialize Float feature
 float_init()
 
-# Load LLM model and tokenizer
-model_name = "distilgpt2"  # Use DistilGPT-2
-tokenizer = DistilGPT2Tokenizer.from_pretrained(model_name)
-model = DistilGPT2LMHeadModel.from_pretrained(model_name)
+# Load BERT model and tokenizer
+model_name = "bert-base-uncased"  # Use BERT for question answering
+tokenizer = BertTokenizer.from_pretrained(model_name)
+model = BertForQuestionAnswering.from_pretrained(model_name)
 
-def get_answer(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(**inputs)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+def get_answer(question, context):
+    inputs = tokenizer(question, context, return_tensors="pt")
+    outputs = model(**inputs)
+    answer_start = outputs.start_logits.argmax()
+    answer_end = outputs.end_logits.argmax() + 1
+    answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs.input_ids[0][answer_start:answer_end]))
+    return answer
 
 def speech_to_text(audio_file_path):
     recognizer = sr.Recognizer()
