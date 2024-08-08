@@ -7,3 +7,4 @@ streamlit
 audio_recorder_streamlit
 streamlit_float
 gtts
+whisper
