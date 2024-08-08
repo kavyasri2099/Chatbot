@@ -1,17 +1,17 @@
 import os
 import base64
-import speech_recognition as sr
-import pyttsx3
 import streamlit as st
-from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
+from gtts import gTTS
+import speech_recognition as sr
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
-# Initialize text-to-speech engine
-tts_engine = pyttsx3.init()
+# Initialize Float feature
+float_init()
 
 # Load LLM model and tokenizer
-model_name = "gpt-3.5-turbo"  # or any other pre-trained model
+model_name = "gpt-3.5-turbo"  # Use a pre-trained LLM model
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
 
@@ -28,8 +28,8 @@ def speech_to_text(audio_file_path):
     return transcript
 
 def text_to_speech(text):
-    tts_engine.save_to_file(text, 'temp_audio.mp3')
-    tts_engine.runAndWait()
+    tts = gTTS(text, lang='en')
+    tts.save('temp_audio.mp3')
     return 'temp_audio.mp3'
 
 def autoplay_audio(file_path):
