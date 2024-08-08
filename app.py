@@ -1,42 +1,40 @@
 import os
 import base64
 import streamlit as st
-import deepspeech
-import numpy as np
-import wave
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
+from transformers import GPT2LMHeadModel, GPT2Tokenizer, Wav2Vec2ForCTC, Wav2Vec2Tokenizer
 from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
+import numpy as np
+import torchaudio
 
 # Initialize Float feature
 float_init()
 
-# Load DeepSpeech model
-model_file_path = 'deepspeech-0.9.3-models.pbmm'
-scorer_file_path = 'deepspeech-0.9.3-models.scorer'
-ds_model = deepspeech.Model(model_file_path)
-ds_model.enableExternalScorer(scorer_file_path)
+# Load Wav2Vec2 model and tokenizer
+model_name = "facebook/wav2vec2-base-960h"
+tokenizer = Wav2Vec2Tokenizer.from_pretrained(model_name)
+wav2vec2_model = Wav2Vec2ForCTC.from_pretrained(model_name)
 
 # Load GPT-2 model and tokenizer
-model_name = "gpt2"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-model = GPT2LMHeadModel.from_pretrained(model_name)
+gpt_model_name = "gpt2"
+gpt_tokenizer = GPT2Tokenizer.from_pretrained(gpt_model_name)
+gpt_model = GPT2LMHeadModel.from_pretrained(gpt_model_name)
 
 def get_answer(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(**inputs)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    inputs = gpt_tokenizer(prompt, return_tensors="pt")
+    outputs = gpt_model.generate(**inputs)
+    return gpt_tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def speech_to_text(audio_file_path):
     # Load audio file
-    with wave.open(audio_file_path, 'rb') as w:
-        frames = w.readframes(w.getnframes())
-        audio = np.frombuffer(frames, dtype=np.int16)
-
-    # Perform transcription
-    text = ds_model.stt(audio)
-    return text
+    waveform, _ = torchaudio.load(audio_file_path)
+    inputs = tokenizer(waveform.squeeze().numpy(), return_tensors="pt")
+    with torch.no_grad():
+        logits = wav2vec2_model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    return tokenizer.batch_decode(predicted_ids)[0]
 
 def text_to_speech(text):
     tts = gTTS(text, lang='en')
