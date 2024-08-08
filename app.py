@@ -6,6 +6,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import whisper
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
+from gtts import gTTS
 
 # Initialize Float feature
 float_init()
@@ -14,7 +15,7 @@ float_init()
 whisper_model = whisper.load_model("base")
 
 # Load GPT-2 model and tokenizer
-model_name = "gpt2"  # Use GPT-2 for demonstration
+model_name = "gpt2"
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = GPT2LMHeadModel.from_pretrained(model_name)
 
@@ -28,7 +29,6 @@ def speech_to_text(audio_file_path):
     return result["text"]
 
 def text_to_speech(text):
-    from gtts import gTTS
     tts = gTTS(text, lang='en')
     tts.save('temp_audio.mp3')
     return 'temp_audio.mp3'
@@ -79,7 +79,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
             final_response = get_answer(st.session_state.messages[-1]["content"])
-        with st.spinner("Generating audio response..."):    
+        with st.spinner("Generating audio response..."):
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
         st.write(final_response)
