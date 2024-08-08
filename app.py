@@ -27,7 +27,7 @@ def get_answer(question, context):
     answer = tokenizer.convert_tokens_to_string(
         tokenizer.convert_ids_to_tokens(inputs.input_ids[0][answer_start:answer_end])
     )
-    return answer
+    return answer.strip()
 
 def speech_to_text(audio_file_path):
     recognizer = sr.Recognizer()
@@ -37,20 +37,25 @@ def speech_to_text(audio_file_path):
     return transcript
 
 def text_to_speech(text):
-    tts = gTTS(text, lang='en')
-    tts.save('temp_audio.mp3')
-    return 'temp_audio.mp3'
+    if text.strip():  # Check if the text is not empty
+        tts = gTTS(text, lang='en')
+        tts.save('temp_audio.mp3')
+        return 'temp_audio.mp3'
+    else:
+        st.error("No response generated for text-to-speech conversion.")
+        return None
 
 def autoplay_audio(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode("utf-8")
-    md = f"""
-    <audio autoplay>
-    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-    </audio>
-    """
-    st.markdown(md, unsafe_allow_html=True)
+    if file_path:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        b64 = base64.b64encode(data).decode("utf-8")
+        md = f"""
+        <audio autoplay>
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+        """
+        st.markdown(md, unsafe_allow_html=True)
 
 def initialize_session_state():
     if "messages" not in st.session_state:
@@ -89,11 +94,15 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
             final_response = get_answer(st.session_state.messages[-1]["content"], context)
-        with st.spinner("Generating audio response..."):
-            audio_file = text_to_speech(final_response)
-            autoplay_audio(audio_file)
-        st.write(final_response)
-        st.session_state.messages.append({"role": "assistant", "content": final_response})
-        os.remove(audio_file)
+        if final_response.strip():  # Ensure the response is not empty
+            with st.spinner("Generating audio response..."):
+                audio_file = text_to_speech(final_response)
+                if audio_file:
+                    autoplay_audio(audio_file)
+                st.write(final_response)
+                st.session_state.messages.append({"role": "assistant", "content": final_response})
+                os.remove(audio_file)
+        else:
+            st.write("Sorry, I could not generate a meaningful response.")
 
 footer_container.float("bottom: 0rem;")
