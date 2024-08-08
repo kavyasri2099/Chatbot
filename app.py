@@ -1,9 +1,10 @@
 import os
 import base64
 import streamlit as st
-import torch
+import deepspeech
+import numpy as np
+import wave
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
-import speech_recognition as sr
 from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
@@ -11,12 +12,11 @@ from streamlit_float import float_init
 # Initialize Float feature
 float_init()
 
-# Load SpeechRecognition for transcription
-def speech_to_text(audio_file_path):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file_path) as source:
-        audio_data = recognizer.record(source)
-        return recognizer.recognize_google(audio_data)
+# Load DeepSpeech model
+model_file_path = 'deepspeech-0.9.3-models.pbmm'
+scorer_file_path = 'deepspeech-0.9.3-models.scorer'
+ds_model = deepspeech.Model(model_file_path)
+ds_model.enableExternalScorer(scorer_file_path)
 
 # Load GPT-2 model and tokenizer
 model_name = "gpt2"
@@ -27,6 +27,16 @@ def get_answer(prompt):
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(**inputs)
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+def speech_to_text(audio_file_path):
+    # Load audio file
+    with wave.open(audio_file_path, 'rb') as w:
+        frames = w.readframes(w.getnframes())
+        audio = np.frombuffer(frames, dtype=np.int16)
+
+    # Perform transcription
+    text = ds_model.stt(audio)
+    return text
 
 def text_to_speech(text):
     tts = gTTS(text, lang='en')
