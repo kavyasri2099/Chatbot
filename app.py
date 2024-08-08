@@ -1,9 +1,10 @@
 import os
 import base64
 import streamlit as st
-from gtts import gTTS
-import speech_recognition as sr
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer
+from pyannote.audio import Audio
+from pyannote.audio.pipelines import SpeechRecognition
+from pyttsx3 import init
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
@@ -11,9 +12,9 @@ from streamlit_float import float_init
 float_init()
 
 # Load LLM model and tokenizer
-model_name = "gpt2"  # Use GPT-2 for demonstration
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-model = GPT2LMHeadModel.from_pretrained(model_name)
+model_name = "t5-base"  # Use t5-base for demonstration
+tokenizer = T5Tokenizer.from_pretrained(model_name)
+model = T5ForConditionalGeneration.from_pretrained(model_name)
 
 def get_answer(prompt):
     inputs = tokenizer(prompt, return_tensors="pt")
@@ -21,16 +22,14 @@ def get_answer(prompt):
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def speech_to_text(audio_file_path):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file_path) as source:
-        audio_data = recognizer.record(source)
-        transcript = recognizer.recognize_google(audio_data)
-    return transcript
+    pipeline = SpeechRecognition(lazy_init=True)
+    output = pipeline(audio_file_path)
+    return output["text"]
 
 def text_to_speech(text):
-    tts = gTTS(text, lang='en')
-    tts.save('temp_audio.mp3')
-    return 'temp_audio.mp3'
+    engine = init()
+    engine.say(text)
+    engine.runAndWait()
 
 def autoplay_audio(file_path):
     with open(file_path, "rb") as f:
@@ -51,7 +50,7 @@ def initialize_session_state():
 
 initialize_session_state()
 
-st.title("Speech-to-Speech Conversational Bot 🤖")
+st.title("Speech-to-Speech Conversational Bot ")
 
 footer_container = st.container()
 with footer_container:
@@ -76,13 +75,11 @@ if audio_bytes:
 
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
-        with st.spinner("Thinking🤔..."):
+        with st.spinner("Thinking..."):
             final_response = get_answer(st.session_state.messages[-1]["content"])
         with st.spinner("Generating audio response..."):    
-            audio_file = text_to_speech(final_response)
-            autoplay_audio(audio_file)
+            text_to_speech(final_response)
         st.write(final_response)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
-        os.remove(audio_file)
 
 footer_container.float("bottom: 0rem;")
