@@ -1,45 +1,37 @@
 import os
 import base64
 import streamlit as st
-import torch
-from transformers import GPT2LMHeadModel, GPT2Tokenizer, Wav2Vec2ForCTC, Wav2Vec2Tokenizer
-from gtts import gTTS
+import pyttsx3
+import speech_recognition as sr
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
-import numpy as np
-import torchaudio
 
 # Initialize Float feature
 float_init()
 
-# Load Wav2Vec2 model and tokenizer
-model_name = "facebook/wav2vec2-base-960h"
-tokenizer = Wav2Vec2Tokenizer.from_pretrained(model_name)
-wav2vec2_model = Wav2Vec2ForCTC.from_pretrained(model_name)
-
 # Load GPT-2 model and tokenizer
-gpt_model_name = "gpt2"
-gpt_tokenizer = GPT2Tokenizer.from_pretrained(gpt_model_name)
-gpt_model = GPT2LMHeadModel.from_pretrained(gpt_model_name)
+model_name = "gpt2"  # Use GPT-2 for demonstration
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+model = GPT2LMHeadModel.from_pretrained(model_name)
 
 def get_answer(prompt):
-    inputs = gpt_tokenizer(prompt, return_tensors="pt")
-    outputs = gpt_model.generate(**inputs)
-    return gpt_tokenizer.decode(outputs[0], skip_special_tokens=True)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def speech_to_text(audio_file_path):
-    # Load audio file
-    waveform, _ = torchaudio.load(audio_file_path)
-    inputs = tokenizer(waveform.squeeze().numpy(), return_tensors="pt")
-    with torch.no_grad():
-        logits = wav2vec2_model(input_values=inputs.input_values).logits
-    predicted_ids = torch.argmax(logits, dim=-1)
-    return tokenizer.batch_decode(predicted_ids)[0]
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file_path) as source:
+        audio_data = recognizer.record(source)
+        return recognizer.recognize_google(audio_data)
 
 def text_to_speech(text):
-    tts = gTTS(text, lang='en')
-    tts.save('temp_audio.mp3')
-    return 'temp_audio.mp3'
+    engine = pyttsx3.init()
+    audio_file_path = 'temp_audio.mp3'
+    engine.save_to_file(text, audio_file_path)
+    engine.runAndWait()
+    return audio_file_path
 
 def autoplay_audio(file_path):
     with open(file_path, "rb") as f:
@@ -87,7 +79,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
             final_response = get_answer(st.session_state.messages[-1]["content"])
-        with st.spinner("Generating audio response..."):
+        with st.spinner("Generating audio response..."):    
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
         st.write(final_response)
