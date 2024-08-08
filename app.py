@@ -3,16 +3,20 @@ import base64
 import streamlit as st
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
-import whisper
+import speech_recognition as sr
+from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
-from gtts import gTTS
 
 # Initialize Float feature
 float_init()
 
-# Load Whisper model
-whisper_model = whisper.load_model("base")
+# Load SpeechRecognition for transcription
+def speech_to_text(audio_file_path):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file_path) as source:
+        audio_data = recognizer.record(source)
+        return recognizer.recognize_google(audio_data)
 
 # Load GPT-2 model and tokenizer
 model_name = "gpt2"
@@ -23,10 +27,6 @@ def get_answer(prompt):
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(**inputs)
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-def speech_to_text(audio_file_path):
-    result = whisper_model.transcribe(audio_file_path)
-    return result["text"]
 
 def text_to_speech(text):
     tts = gTTS(text, lang='en')
