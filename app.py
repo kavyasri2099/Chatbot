@@ -2,8 +2,7 @@ import os
 import base64
 import streamlit as st
 from transformers import T5ForConditionalGeneration, T5Tokenizer
-from pyannote.audio import Audio
-from pyannote.audio.pipelines import SpeechRecognition
+import speech_recognition as sr
 from pyttsx3 import init
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
@@ -22,9 +21,11 @@ def get_answer(prompt):
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def speech_to_text(audio_file_path):
-    pipeline = SpeechRecognition(lazy_init=True)
-    output = pipeline(audio_file_path)
-    return output["text"]
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file_path) as source:
+        audio_data = recognizer.record(source)
+        transcript = recognizer.recognize_google(audio_data)
+    return transcript
 
 def text_to_speech(text):
     engine = init()
