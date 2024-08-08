@@ -3,7 +3,7 @@ import base64
 import streamlit as st
 from gtts import gTTS
 import speech_recognition as sr
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
@@ -11,9 +11,9 @@ from streamlit_float import float_init
 float_init()
 
 # Load LLM model and tokenizer
-model_name = "gpt-3.5-turbo"  # Use a pre-trained LLM model
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
+model_name = "gpt2"  # Use GPT-2 for demonstration
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+model = GPT2LMHeadModel.from_pretrained(model_name)
 
 def get_answer(prompt):
     inputs = tokenizer(prompt, return_tensors="pt")
