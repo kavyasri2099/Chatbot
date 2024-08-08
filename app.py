@@ -28,7 +28,6 @@ def speech_to_text(audio_file_path):
     return result["text"]
 
 def text_to_speech(text):
-    # Using gTTS for text-to-speech
     from gtts import gTTS
     tts = gTTS(text, lang='en')
     tts.save('temp_audio.mp3')
