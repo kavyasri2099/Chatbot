@@ -1,70 +1,82 @@
 import streamlit as st
-import ollama as ol
-from voice import record_voice
+import torch
+import pyttsx3
+import speech_recognition as sr
+from transformers import WhisperProcessor, WhisperForConditionalGeneration, AutoTokenizer, AutoModelForCausalLM
+from huggingface_hub import login
+import time
 
-st.set_page_config(page_title="🎙️ Voice Bot", layout="wide")
-st.title("🎙️ Speech Bot")
-st.sidebar.title("`Speak with LLMs` \n`in any language`")
+# Authenticate with Hugging Face
+login('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', add_to_git_credential=True)
 
+# Load models
+whisper_processor = WhisperProcessor.from_pretrained("openai/whisper-base")
+whisper_model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-base")
 
-def language_selector():
-    lang_options = ["ar", "de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt", "ru", "zh"]
-    with st.sidebar: 
-        return st.selectbox("Speech Language", ["en"] + lang_options)
+llama_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+llama_model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
 
-def llm_selector():
-    ollama_models = [m['name'] for m in ol.list()['models']]
-    with st.sidebar:
-        return st.selectbox("LLM", ollama_models)
+tts_engine = pyttsx3.init()
+recognizer = sr.Recognizer()
 
+# Define functions
+def recognize_speech_microphone():
+    with sr.Microphone() as source:
+        recognizer.adjust_for_ambient_noise(source)
+        st.info("🎤 Listening...")
+        audio = recognizer.listen(source, timeout=5)
+        audio_data = audio.get_wav_data()
+        inputs = whisper_processor(audio_data, return_tensors="pt", sampling_rate=16000)
+        outputs = whisper_model.generate(inputs["input_ids"])
+        text = whisper_processor.decode(outputs[0], skip_special_tokens=True)
+        return text
 
-def print_txt(text):
-    if any("\u0600" <= c <= "\u06FF" for c in text): # check if text contains Arabic characters
-        text = f"<p style='direction: rtl; text-align: right;'>{text}</p>"
-    st.markdown(text, unsafe_allow_html=True)
+def generate_response(input_text):
+    inputs = llama_tokenizer(input_text, return_tensors="pt")
+    outputs = llama_model.generate(inputs["input_ids"])
+    response_text = llama_tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response_text
 
+def speak_text(text):
+    tts_engine.say(text)
+    tts_engine.runAndWait()
 
-def print_chat_message(message):
-    text = message["content"]
-    if message["role"] == "user":
-        with st.chat_message("user", avatar="🎙️"):
-            print_txt(text)
-    else:
-        with st.chat_message("assistant", avatar="🦙"):
-            print_txt(text)
-
+# Main function
 def main():
-    
-    model = llm_selector()
-    with st.sidebar:
-        question = record_voice(language=language_selector())
-    
-    # init chat history for a model
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = {}
-    if model not in st.session_state.chat_history:
-        st.session_state.chat_history[model] = []
-    chat_history = st.session_state.chat_history[model]
-    # print conversation history
-    for message in chat_history: print_chat_message(message)
+    st.title("🗣️ Speech-to-Speech Bot")
+    st.markdown("## Simple and Intuitive Interface")
 
-    if question:
-        user_message = {"role": "user", "content": question}
-        print_chat_message(user_message)
-        chat_history.append(user_message)
-        response = ol.chat(model=model, messages=chat_history)
-        answer = response['message']['content']
-        ai_message = {"role": "assistant", "content": answer}
-        print_chat_message(ai_message)
-        chat_history.append(ai_message)
+    input_method = st.sidebar.radio("Choose input method:", ("Microphone 🎤", "Webcam 📹", "Text Input 📝"))
 
-        # truncate chat history to keep 20 messages max
-        if len(chat_history) > 20:
-            chat_history = chat_history[-20:]
-        
-        # update chat history
-        st.session_state.chat_history[model] = chat_history
+    if input_method == "Microphone 🎤":
+        if st.button("Start Recording"):
+            start_time = time.time()
+            spoken_text = recognize_speech_microphone()
+            if spoken_text:
+                response_text = generate_response(spoken_text)
+                speak_text(response_text)
+                st.success(f"💬 Recognized: {spoken_text}")
+                st.success(f"🤖 Response: {response_text}")
+            end_time = time.time()
+            processing_time = end_time - start_time
+            st.info(f"Processing Time: {processing_time:.2f} seconds")
 
+    elif input_method == "Webcam 📹":
+        st.warning("Webcam input not fully implemented yet.")
+        # Placeholder for webcam functionality
+
+    elif input_method == "Text Input 📝":
+        user_input = st.text_area("Type your text below:")
+        if st.button("Generate Response"):
+            start_time = time.time()
+            response_text = generate_response(user_input)
+            speak_text(response_text)
+            st.success(f"🤖 Response: {response_text}")
+            end_time = time.time()
+            processing_time = end_time - start_time
+            st.info(f"Processing Time: {processing_time:.2f} seconds")
+
+    st.sidebar.markdown("Developed with ❤️ by [Your Name]")
 
 if __name__ == "__main__":
     main()
