@@ -1,3 +1,7 @@
-streamlit==1.31.1
-ollama==0.1.6
-streamlit_mic_recorder==0.0.4
+streamlit
+torch
+pyttsx3
+SpeechRecognition
+transformers
+huggingface_hub
+soundfile
